@@ -1,13 +1,24 @@
-MAXIMUM_STEP_LIMIT = 20
+MAXIMUM_STEP_LIMIT = 10
 
-DEFAULT_SYSTEM_PROMPT_WITHOUT_FUNC_DOC = """You are an expert in composing functions. You are given a question and a set of possible functions. Based on the question, you will need to make one or more function/tool calls to achieve the purpose.
+DEFAULT_SYSTEM_PROMPT_WITHOUT_FUNC_DOC = """
+You are an expert in using tools. You are given a question and a set of possible tools. Based on the question, you will need to make one or more function/tool calls to achieve the purpose.
 If none of the function can be used, point it out. If the given question lacks the parameters required by the function, also point it out.
-You should only return the function calls in your response.
 
-If you decide to invoke any of the function(s), you MUST put it in the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]
-You SHOULD NOT include any other text in the response.
+To use a tool, specify the tool name and the inputs to the tool. For example, to call the add(a, b) tool with inputs 2 and 3, you can say: use tool add() with argument a=2 and argument b=3.
+Check how many arguments are listed in the tool. Make sure the number of inputs called match the tool definition. Make sure the inputs match.
 
-At each turn, your should try your best to complete the tasks requested by the user within the current turn. Continue to output functions to call until you have fulfilled the user's request to the best of your ability. Once you have no more functions to call, the system will consider the current turn complete and proceed to the next turn or task.
+At each turn, your should try your best to complete the tasks requested by the user within the current turn. Continue to output tools to call until you have fulfilled the user's request to the best of your ability. Once you have no more tools to call, simply say there are no more tools to call.
+
+Think step by step. 
+"""
+
+ENGLISH_CONVERSION_SYSTEM_PROMPT = """
+You are an expert in composing functions. You are given a description of how to invoke a function in natural language. Your task is to translate the given description and convert it into the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]. Replace func_name, params_name,and params_value with names specified in the description. 
+You MUST use this output format. You SHOULD NOT include any other text in the response.
+
+If the description says there are no more tools to call, simply output nothing.
+
+Here is a list of functions in JSON format that you can invoke.\n{functions}\n
 """
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -16,6 +27,21 @@ DEFAULT_SYSTEM_PROMPT = (
 Here is a list of functions in JSON format that you can invoke.\n{functions}\n
 """
 )
+
+ENGLISH_TOOL_DESCRIPTION_SYSTEM_PROMPT = (
+    DEFAULT_SYSTEM_PROMPT_WITHOUT_FUNC_DOC
+    + """
+Here is a list of functions that you can invoke.\n{functions}\n
+
+To use a tool, specify the tool name and the inputs to the tool using plain English.
+Check how many arguments are listed in the tool. Make sure the number of inputs called match the tool definition. Make sure the inputs match.
+
+Think step by step. Explicitly state your hypotheses. Explain why a tool should be used at each step. 
+
+At the end, summarize how to use the tools. 
+"""
+)
+
 
 DEFAULT_USER_PROMPT_FOR_ADDITIONAL_FUNCTION_FC = "I have updated some more functions you can choose from. What about now?"
 

@@ -13,10 +13,29 @@ from bfcl.model_handler.constant import (
     DEFAULT_USER_PROMPT_FOR_ADDITIONAL_FUNCTION_PROMPTING,
     MAXIMUM_STEP_LIMIT,
 )
+from bfcl.model_handler.utils import get_translator_system_prompt
+
 from bfcl.model_handler.model_style import ModelStyle
 from bfcl.utils import load_file, make_json_serializable, sort_key
 from overrides import final
 
+#def englishfy_tool_definition(tools) -> str:
+#    # Takes the string in JSON format that describes available tools. Convert into English
+#    out_string = ""
+#
+#    for tool in tools:
+#        out_string += f"\nFunction name: {tool['name']}"
+#        description = tool['description']
+#        out_string += description.replace('Note that the provided function is in Python 3 syntax.','')
+#        out_string += "The function takes the following inputs: "
+#        for param, details in tool['parameters']['properties'].items():
+#            out_string += f"\n  - {param}: {details['type']} type. {details['description']}"
+#        out_string += "\n This function returns following outputs: \n"
+#        for resp_var, resp_details in tool['response']['properties'].items():
+#            out_string += f"  - {resp_var}: {resp_details['type']} type. {resp_details['description']}"
+#        out_string += f"\n\n"
+#
+#    return out_string
 
 class BaseHandler:
     model_name: str
@@ -31,6 +50,8 @@ class BaseHandler:
         )
         self.temperature = temperature
         self.is_fc_model = False  # Whether the model is a function calling model
+    
+
 
     def inference(self, test_entry: dict, include_input_log: bool, exclude_state_log: bool):
         # This method is used to retrive model response for each model.
@@ -188,7 +209,9 @@ class BaseHandler:
 
                 # Try decoding the model response
                 try:
+                    print("!!!!!!!!!! before decode ")
                     decoded_model_responses = self.decode_execute(model_responses)
+                    print("!!!!!!!!!! after decode ", decoded_model_responses)
                     current_step_inference_log.append(
                         {
                             "role": "handler_log",
@@ -300,6 +323,7 @@ class BaseHandler:
     def inference_multi_turn_prompting(
         self, test_entry: dict, include_input_log: bool, exclude_state_log: bool
     ) -> tuple[list[list], dict]:
+
         initial_config: dict = test_entry["initial_config"]
         involved_classes: list = test_entry["involved_classes"]
         test_entry_id: str = test_entry["id"]
@@ -351,6 +375,15 @@ class BaseHandler:
                 )
             all_inference_log.append(state_log)
 
+        functions: list = test_entry["function"]
+        translator_system_prompt = get_translator_system_prompt(functions)
+
+        # Reasoning call needs englishfied function docs
+        #Translator call needs the original JSON function docs
+        #functions_english_str = englishfy_tool_definition(functions)
+        #functions_english_str = [functions_english_str] # make it a list
+        #test_entry["function"] = functions_english_str 
+
         inference_data: dict = self._pre_query_processing_prompting(test_entry)
 
         all_multi_turn_messages: list[list[dict]] = test_entry["question"]
@@ -369,6 +402,9 @@ class BaseHandler:
                         ),
                     }
                 ]
+
+            #print("######### functions type", type(functions[0]))
+            #print("######### function english string", functions_english_str)
 
             if turn_idx == 0:
                 inference_data = self.add_first_turn_message_prompting(
@@ -395,7 +431,23 @@ class BaseHandler:
                 # Add to the current_turn_inference_log at beginning of each step so that we don't need to bother dealing with the break statements
                 current_turn_inference_log[f"step_{count}"] = current_step_inference_log
 
+                #print("######## Kevin reasoning stage input", inference_data)
+
                 api_response, query_latency = self._query_prompting(inference_data)
+                
+                #print("######## Kevin reasoning stage output", api_response.choices[0].text)
+                # translate 
+                translator_input = {}
+                # messages need to have system role and user role plus content for each
+                translator_content_system = {'role': 'system', 'content': translator_system_prompt} 
+                translator_content_user = {'role': 'user', 'content': "Function description: " + api_response.choices[0].text} 
+                translator_content = [translator_content_system, translator_content_user]
+                #print("######## Kevin translator in", translator_content)
+                translator_input["message"] = translator_content 
+                translator_input["function"] = "" # unused
+
+                api_response, query_latency = self._query_prompting(translator_input)
+                #print("######## Kevin translator out", api_response.choices[0].text)
 
                 # This part of logging is disabled by default because it is too verbose and will make the result file extremely large
                 # It is only useful to see if the inference pipeline is working as expected (eg, does it convert all the inputs correctly)
@@ -572,11 +624,31 @@ class BaseHandler:
         self, test_entry: dict, include_input_log: bool
     ) -> tuple[any, dict]:
         inference_data: dict = self._pre_query_processing_prompting(test_entry)
+
+        # get translator system prompt
+        functions: list = test_entry["function"]
+        translator_system_prompt = get_translator_system_prompt(functions)
+        #print("######## Kevin translator system prompt", translator_system_prompt)
+
         inference_data = self.add_first_turn_message_prompting(
             inference_data, test_entry["question"][0]
         )
 
         api_response, query_latency = self._query_prompting(inference_data)
+
+        translator_input = {}
+        translator_input["function"] = "" # function field is unused for Llama _format_prompt
+        # messages need to have system role and user role plus content for each
+        translator_content_system = {'role': 'system', 'content': translator_system_prompt} 
+        translator_content_user = {'role': 'user', 'content': "Function description: " + api_response.choices[0].text} 
+        translator_content = [translator_content_system, translator_content_user]
+        #print("######## Kevin translator in", translator_content)
+        translator_input["message"] = translator_content 
+
+        # call translator
+
+        api_response, query_latency = self._query_prompting(translator_input)
+        #print("######## Kevin translator out", api_response)
 
         # Try parsing the model response
         model_response_data = self._parse_query_response_prompting(api_response)
@@ -588,6 +660,7 @@ class BaseHandler:
                 {
                     "role": "inference_input",
                     "content": inference_data.get("inference_input_log", ""),
+                    "translator_content": translator_input.get("inference_input_log", ""),
                 }
             ]
         metadata["input_token_count"] = model_response_data["input_token"]

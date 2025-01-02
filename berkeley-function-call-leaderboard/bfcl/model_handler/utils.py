@@ -5,7 +5,12 @@ import json
 import os
 import re
 
-from bfcl.model_handler.constant import DEFAULT_SYSTEM_PROMPT, GORILLA_TO_OPENAPI
+from bfcl.model_handler.constant import (
+        DEFAULT_SYSTEM_PROMPT, 
+        ENGLISH_TOOL_DESCRIPTION_SYSTEM_PROMPT, 
+        GORILLA_TO_OPENAPI, 
+        ENGLISH_CONVERSION_SYSTEM_PROMPT 
+)
 from bfcl.model_handler.model_style import ModelStyle
 from bfcl.model_handler.parser.java_parser import parse_java_function_call
 from bfcl.model_handler.parser.js_parser import parse_javascript_function_call
@@ -286,6 +291,31 @@ def resolve_ast_by_type(value):
         raise Exception(f"Unsupported AST type: {type(value)}")
     return output
 
+def get_translator_system_prompt(function_docs):
+    # Create prompt for English to function translator
+    translator_system_prompt_template = ENGLISH_CONVERSION_SYSTEM_PROMPT
+    translator_system_prompt = translator_system_prompt_template.format(functions=function_docs)
+
+    return translator_system_prompt 
+
+def englishfy_tool_definition(tools) -> str:
+    # Takes the string in JSON format that describes available tools. Convert into English
+    out_string = ""
+
+    for tool in tools:
+        out_string += f"\nFunction name: {tool['name']}. "
+        description = tool['description']
+        out_string += description.replace('Note that the provided function is in Python 3 syntax.','')
+        out_string += "The function takes the following inputs: "
+        for param, details in tool['parameters']['properties'].items():
+            out_string += f"\n  - {param}: {details['type']} type. {details['description']}"
+        out_string += "\n This function returns following outputs: \n"
+        for resp_var, resp_details in tool['response']['properties'].items():
+            out_string += f"  - {resp_var}: {resp_details['type']} type. {resp_details['description']}"
+        out_string += f"\n"
+
+    return out_string
+
 
 def system_prompt_pre_processing_chat_model(prompts, function_docs, test_category):
     """
@@ -294,9 +324,13 @@ def system_prompt_pre_processing_chat_model(prompts, function_docs, test_categor
     """
     assert type(prompts) == list
 
-    system_prompt_template = DEFAULT_SYSTEM_PROMPT
+    #system_prompt_template = DEFAULT_SYSTEM_PROMPT
+    system_prompt_template = ENGLISH_TOOL_DESCRIPTION_SYSTEM_PROMPT
 
-    system_prompt = system_prompt_template.format(functions=function_docs)
+    # Instead of specifying functions in JSON format, use plain English
+    function_docs_natural_language = englishfy_tool_definition(function_docs)
+    system_prompt = system_prompt_template.format(functions=function_docs_natural_language)
+    #system_prompt += " \n Think step by step. \n"
 
     # System prompt must be in the first position
     # If the question comes with a system prompt, append its content at the end of the chat template.
@@ -672,7 +706,9 @@ def default_decode_execute_prompting(result):
         result = "[" + result
     if not result.endswith("]"):
         result = result + "]"
+    #print("!!!!!!! Kevin default_decode_execute_prompting, result ", result)
     decoded_output = ast_parse(result)
+    #print("!!!!!!! Kevin default_decode_execute_prompting, decoded_output ", decoded_output)
     return decoded_output_to_execution_list(decoded_output)
 
 

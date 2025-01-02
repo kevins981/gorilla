@@ -267,6 +267,9 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         message: list[dict] = inference_data["message"]
 
         formatted_prompt: str = self._format_prompt(message, function)
+
+        print("####### Kevin model input ", formatted_prompt)
+
         inference_data["inference_input_log"] = {"formatted_prompt": formatted_prompt}
 
         # Tokenize the formatted prompt to get token count
@@ -303,6 +306,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
             )
         end_time = time.time()
 
+        print("####### Kevin model output ", api_response)
         return api_response, end_time - start_time
 
     @override
@@ -310,11 +314,18 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         functions: list = test_entry["function"]
         test_category: str = test_entry["id"].rsplit("_", 1)[0]
 
-        functions = func_doc_language_specific_pre_processing(functions, test_category)
+        #print("!!!!!!! _pre_query_processing_prompting functions", functions)
+
+        #functions = func_doc_language_specific_pre_processing(functions, test_category)
+
+        # functions here is dict
 
         test_entry["question"][0] = system_prompt_pre_processing_chat_model(
             test_entry["question"][0], functions, test_category
         )
+        # functions becomes a part of test_entry in str format
+
+        #print("!!!!!!! _pre_query_processing_prompting test_entry[question][0]", test_entry["question"][0])
 
         return {"message": [], "function": functions}
 
