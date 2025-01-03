@@ -310,8 +310,9 @@ def englishfy_tool_definition(tools) -> str:
         for param, details in tool['parameters']['properties'].items():
             out_string += f"\n  - {param}: {details['type']} type. {details['description']}"
         out_string += "\n This function returns following outputs: \n"
-        for resp_var, resp_details in tool['response']['properties'].items():
-            out_string += f"  - {resp_var}: {resp_details['type']} type. {resp_details['description']}"
+        if 'response' in tool:
+            for resp_var, resp_details in tool['response']['properties'].items():
+                out_string += f"  - {resp_var}: {resp_details['type']} type. {resp_details['description']}"
         out_string += f"\n"
 
     return out_string
@@ -331,6 +332,8 @@ def system_prompt_pre_processing_chat_model(prompts, function_docs, test_categor
     function_docs_natural_language = englishfy_tool_definition(function_docs)
     system_prompt = system_prompt_template.format(functions=function_docs_natural_language)
     #system_prompt += " \n Think step by step. \n"
+
+    #print("!!!!!!! Kevin system_prompt ", system_prompt)
 
     # System prompt must be in the first position
     # If the question comes with a system prompt, append its content at the end of the chat template.

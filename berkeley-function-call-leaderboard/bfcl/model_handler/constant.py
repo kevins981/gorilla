@@ -18,7 +18,7 @@ You MUST use this output format. You SHOULD NOT include any other text in the re
 
 If the description says there are no more tools to call, simply output nothing.
 
-Here is a list of functions in JSON format that you can invoke.\n{functions}\n
+Here is a list of functions that you can invoke.\n{functions}\n
 """
 
 DEFAULT_SYSTEM_PROMPT = (
