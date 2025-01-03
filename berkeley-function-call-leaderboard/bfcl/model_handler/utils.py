@@ -299,20 +299,32 @@ def get_translator_system_prompt(function_docs):
     return translator_system_prompt 
 
 def englishfy_tool_definition(tools) -> str:
-    # Takes the string in JSON format that describes available tools. Convert into English
+    # Takes dict that describes available tools. Convert into English
     out_string = ""
 
     for tool in tools:
         out_string += f"\nFunction name: {tool['name']}. "
         description = tool['description']
-        out_string += description.replace('Note that the provided function is in Python 3 syntax.','')
+        out_string += description.replace('Note that the provided function is in Python 3 syntax.','') # remove this
+
+        # input arguments
         out_string += "The function takes the following inputs: "
         for param, details in tool['parameters']['properties'].items():
-            out_string += f"\n  - {param}: {details['type']} type. {details['description']}"
-        out_string += "\n This function returns following outputs: \n"
+            out_string += f"\n  - {param}: {details['type']} type. {details['description']} "
+            # if argument is enum
+            #print(resp_details)
+            if 'enum' in details:
+                out_string += f"Must be one of {', '.join(details['enum'])}"
+        out_string += f"\n {', '.join(tool['parameters']['required'])} are required inputs."
+
+        # output arguments
         if 'response' in tool:
+            out_string += "\n This function returns following outputs: \n"
             for resp_var, resp_details in tool['response']['properties'].items():
                 out_string += f"  - {resp_var}: {resp_details['type']} type. {resp_details['description']}"
+        else:
+            out_string += "\n This function has no output.\n"
+
         out_string += f"\n"
 
     return out_string
