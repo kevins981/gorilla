@@ -13,12 +13,12 @@ Think step by step.
 """
 
 ENGLISH_CONVERSION_SYSTEM_PROMPT = """
-You are an expert in composing functions. You are given a description of how to invoke a function in natural language. Your task is to translate the given description and convert it into the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]. Replace func_name, params_name,and params_value with names specified in the description. 
+You are an expert in composing functions. You are given a description of how to invoke a function in natural language. Your task is to translate the given description and convert it into the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]. Replace func_name, params_name,and params_value with names specified in the description. Use python 3 syntax.
 You MUST use this output format. You SHOULD NOT include any other text in the response.
 
 If the description says there are no more tools to call, simply output nothing.
 
-Here is a list of functions that you can invoke.\n{functions}\n
+Here is a list of functions that you can invoke. You can only invoke these functions. \n{functions}\n
 """
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -31,7 +31,7 @@ Here is a list of functions in JSON format that you can invoke.\n{functions}\n
 ENGLISH_TOOL_DESCRIPTION_SYSTEM_PROMPT = (
     DEFAULT_SYSTEM_PROMPT_WITHOUT_FUNC_DOC
     + """
-Here is a list of functions that you can invoke.\n{functions}\n
+Here is a list of functions that you can invoke. You can only invoke these functions. \n{functions}\n
 
 To use a tool, specify the tool name and the inputs to the tool using plain English.
 Check how many arguments are listed in the tool. Make sure the number of inputs called match the tool definition. Make sure the inputs match.
