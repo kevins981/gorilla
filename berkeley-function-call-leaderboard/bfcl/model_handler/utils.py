@@ -299,7 +299,7 @@ def get_translator_system_prompt(function_docs):
     return translator_system_prompt 
 
 def englishfy_tool_definition(tools) -> str:
-    # Takes dict that describes available tools. Convert into English
+    # Takes the string in JSON format that describes available tools. Convert into English
     out_string = ""
 
     for tool in tools:
@@ -310,11 +310,18 @@ def englishfy_tool_definition(tools) -> str:
         # input arguments
         out_string += "The function takes the following inputs: "
         for param, details in tool['parameters']['properties'].items():
+            # each input argument
             out_string += f"\n  - {param}: {details['type']} type. {details['description']} "
-            # if argument is enum
-            #print(resp_details)
             if 'enum' in details:
+                # if argument is enum
                 out_string += f"Must be one of {', '.join(details['enum'])}"
+            if details['type'] == 'dict':
+                # argument is dictionary
+                if 'properties' in details:
+                    out_string += f"The dict constains following fields: "
+                    for dict_param, dict_details in details['properties'].items():
+                        out_string += f"\n      - {dict_param}: {dict_details['type']} type. {dict_details['description']} "
+
         out_string += f"\n {', '.join(tool['parameters']['required'])} are required inputs."
 
         # output arguments
@@ -328,7 +335,6 @@ def englishfy_tool_definition(tools) -> str:
         out_string += f"\n"
 
     return out_string
-
 
 def system_prompt_pre_processing_chat_model(prompts, function_docs, test_category):
     """
