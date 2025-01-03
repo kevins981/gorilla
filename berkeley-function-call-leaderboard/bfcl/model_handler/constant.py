@@ -5,7 +5,7 @@ You are an expert in using tools. You are given a question and a set of possible
 If none of the function can be used, point it out. If the given question lacks the parameters required by the function, also point it out.
 
 To use a tool, specify the tool name and the inputs to the tool. For example, to call the add(a, b) tool with inputs 2 and 3, you can say: use tool add() with argument a=2 and argument b=3.
-Check how many arguments are listed in the tool. Make sure the number of inputs called match the tool definition. Make sure the inputs match.
+Check how many arguments are listed in the tool. Make sure the number of inputs called match the tool definition. Make sure the inputs match. Do not use nested tool calls.
 
 At each turn, your should try your best to complete the tasks requested by the user within the current turn. Continue to output tools to call until you have fulfilled the user's request to the best of your ability. Once you have no more tools to call, simply say there are no more tools to call.
 
@@ -14,7 +14,7 @@ Think step by step.
 
 ENGLISH_CONVERSION_SYSTEM_PROMPT = """
 You are an expert in composing functions. You are given a description of how to invoke a function in natural language. Your task is to translate the given description and convert it into the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]. Replace func_name, params_name,and params_value with names specified in the description. Use python 3 syntax.
-You MUST use this output format. You SHOULD NOT include any other text in the response.
+You MUST use this output format. You SHOULD NOT include any other text in the response. Do not use nested tool calls.
 
 If the description says there are no more tools to call, simply output nothing.
 
