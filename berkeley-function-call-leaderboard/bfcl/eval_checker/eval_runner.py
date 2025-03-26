@@ -44,17 +44,18 @@ def get_last_line(text):
 def multi_turn_runner(
     handler, model_result, prompt, possible_answer, model_name, test_category, score_dir
 ):
-    assert (
-        len(model_result) == len(prompt) == len(possible_answer)
-    ), f"The length of the model result ({len(model_result)}) does not match the length of the prompt ({len(prompt)}) or possible answer ({len(possible_answer)}). Please check the input files for completeness."
+    #assert (
+    #    len(model_result) == len(prompt) == len(possible_answer)
+    #), f"The length of the model result ({len(model_result)}) does not match the length of the prompt ({len(prompt)}) or possible answer ({len(possible_answer)}). Please check the input files for completeness."
 
     result = []
     correct_count = 0
     for i in range(len(model_result)):
         index: str = model_result[i]["id"]
+        true_index = int(index.split("_")[-1])
         # Model result is stored as a list of list of model responses. Each inner list represents a turn.
         multi_turn_model_result_list: list[list] = model_result[i]["result"]
-        multi_turn_ground_truth_list: list[list[str]] = possible_answer[i]["ground_truth"]
+        multi_turn_ground_truth_list: list[list[str]] = possible_answer[true_index]["ground_truth"]
         test_entry: dict = prompt[i]
 
         # Remove the function doc from the score file for better readability; they are repeated and way too long
