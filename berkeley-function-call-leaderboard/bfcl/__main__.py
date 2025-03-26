@@ -242,13 +242,18 @@ def evaluate(
         "--score-dir",
         help="Relative path to the evaluation score folder, if different from the default; Path should be relative to the `berkeley-function-call-leaderboard` root folder",
     ),
+    extract_last_line: bool = typer.Option(
+        False,
+        "--extract-last-line",
+        help="Extract last line of response as function call.",
+    ),
 ):
     """
     Evaluate results from run of one or more models on a test-category (same as eval_runner.py).
     """
 
     load_dotenv(dotenv_path=DOTENV_PATH, verbose=True, override=True)  # Load the .env file
-    evaluation_main(model, test_category, api_sanity_check, result_dir, score_dir)
+    evaluation_main(model, test_category, api_sanity_check, extract_last_line, result_dir, score_dir)
 
 
 @cli.command()

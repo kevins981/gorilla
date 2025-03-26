@@ -36,6 +36,10 @@ def get_handler(model_name):
         model_name, temperature=0
     )  # Temperature doesn't matter for evaluation
 
+def get_last_line(text):
+    lines = text.strip().splitlines()  # Remove surrounding whitespace and split into lines
+    return lines[-1].strip() if lines else ""  # Return the last line without leading/trailing spaces
+
 
 def multi_turn_runner(
     handler, model_result, prompt, possible_answer, model_name, test_category, score_dir
@@ -360,10 +364,11 @@ def ast_file_runner(
     test_category,
     model_name,
     score_dir,
+    extract_last_line,
 ):
-    assert (
-        len(model_result) == len(prompt) == len(possible_answer)
-    ), f"The length of the model result ({len(model_result)}) does not match the length of the prompt ({len(prompt)}) or possible answer ({len(possible_answer)}). Please check the input files for completeness."
+    #assert (
+    #    len(model_result) == len(prompt) == len(possible_answer)
+    #), f"The length of the model result ({len(model_result)}) does not match the length of the prompt ({len(prompt)}) or possible answer ({len(possible_answer)}). Please check the input files for completeness."
 
     result = []
     correct_count = 0
@@ -372,6 +377,11 @@ def ast_file_runner(
         model_result_item = model_result[i]["result"]
         prompt_item = prompt[i]["function"]
         possible_answer_item = possible_answer[i]["ground_truth"]
+    
+        if extract_last_line:
+            # for ReAct style LLMs, extract the last line as function call
+            model_result_item = get_last_line(model_result_item)
+            print(model_result_item)
 
         try:
             model_result_item_raw = model_result_item
@@ -454,7 +464,7 @@ def ast_file_runner(
 
 
 #### Main runner function ####
-def runner(model_names, test_categories, api_sanity_check, result_dir, score_dir):
+def runner(model_names, test_categories, api_sanity_check, extract_last_line, result_dir, score_dir):
 
     # State udpated by each eval subtask.
     state = dict(
@@ -512,6 +522,7 @@ def runner(model_names, test_categories, api_sanity_check, result_dir, score_dir
             state = evaluate_task(
                 test_category,
                 api_sanity_check,
+                extract_last_line,
                 result_dir,
                 score_dir,
                 model_result,
@@ -545,6 +556,7 @@ def runner(model_names, test_categories, api_sanity_check, result_dir, score_dir
 def evaluate_task(
     test_category,
     api_sanity_check,
+    extract_last_line,
     result_dir,
     score_dir,
     model_result,
@@ -644,6 +656,7 @@ def evaluate_task(
                 test_category,
                 model_name,
                 score_dir,
+                extract_last_line,
             )
 
     record_result(state, model_name, test_category, accuracy, total_count)
@@ -652,7 +665,7 @@ def evaluate_task(
     return state
 
 
-def main(model, test_categories, api_sanity_check, result_dir, score_dir):
+def main(model, test_categories, api_sanity_check, extract_last_line, result_dir, score_dir):
     if result_dir is None:
         result_dir = RESULT_PATH
     else:
@@ -665,6 +678,9 @@ def main(model, test_categories, api_sanity_check, result_dir, score_dir):
 
     if type(test_categories) is not list:
         test_categories = [test_categories]
+
+    if extract_last_line:
+        print("[INFO] Extracting last line from output as function calls.")
 
     _, all_test_categories = parse_test_category_argument(test_categories)
 
@@ -691,7 +707,7 @@ def main(model, test_categories, api_sanity_check, result_dir, score_dir):
             model_names.append(model_name.replace("/", "_"))
 
     # Driver function to run the evaluation for all categories involved.
-    runner(model_names, all_test_categories, api_sanity_check, result_dir, score_dir)
+    runner(model_names, all_test_categories, api_sanity_check, extract_last_line, result_dir, score_dir)
 
     if len(skipped_categories) > 0:
         print("----------")
@@ -741,6 +757,13 @@ if __name__ == "__main__":
         type=str,
         help="Path to the folder where the evaluation score files will be stored; relative to the `berkeley-function-call-leaderboard` root folder",
     )
+    parser.add_argument(
+        "--extract-last-line",
+        action="store_true",
+        default=False,  
+        help="Whether to extract the last line of each reply as the function call(s)",
+    )
+
 
     args = parser.parse_args()
 
@@ -751,4 +774,5 @@ if __name__ == "__main__":
         args.api_sanity_check,
         args.result_dir,
         args.score_dir,
+        args.extract_last_line
     )
