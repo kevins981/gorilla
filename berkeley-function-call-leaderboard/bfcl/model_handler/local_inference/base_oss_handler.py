@@ -3,6 +3,7 @@ import threading
 import time
 import os
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
 import requests
 from bfcl.constants.eval_config import (
@@ -36,7 +37,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         self.client = OpenAI(base_url=self.base_url, api_key="EMPTY")
 
     @override
-    def inference(self, test_entry: dict, include_input_log: bool, exclude_state_log: bool):
+    def inference(self, test_entry: dict, include_input_log: bool, exclude_state_log: bool, react_multi_turn: Optional[bool] = False):
         """
         OSS models have a different inference method.
         They needs to spin up a server first and then send requests to it.
@@ -66,6 +67,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         include_input_log: bool,
         exclude_state_log: bool,
         update_mode: bool,
+        react_multi_turn: bool,
         result_dir=RESULT_PATH,
     ):
         """
@@ -202,6 +204,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
                             test_case,
                             include_input_log,
                             exclude_state_log,
+                            react_multi_turn,
                         )
                         futures.append(future)
 
@@ -234,7 +237,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
 
     @final
     def _multi_threaded_inference(
-        self, test_case, include_input_log: bool, exclude_state_log: bool
+        self, test_case, include_input_log: bool, exclude_state_log: bool, react_multi_turn: Optional[bool] = False
     ):
         """
         This is a wrapper function to make sure that, if an error occurs during inference, the process does not stop.
@@ -244,7 +247,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         try:
             if "multi_turn" in test_case["id"]:
                 model_responses, metadata = self.inference_multi_turn_prompting(
-                    test_case, include_input_log, exclude_state_log
+                    test_case, include_input_log, exclude_state_log, react_multi_turn
                 )
             else:
                 model_responses, metadata = self.inference_single_turn_prompting(

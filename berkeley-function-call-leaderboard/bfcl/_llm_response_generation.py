@@ -59,6 +59,13 @@ def get_args():
         default=False,
         help="Skip vLLM/SGLang server setup and use existing endpoint specified by the VLLM_ENDPOINT and VLLM_PORT environment variables."
     )
+    # Used for ReAct
+    parser.add_argument(
+         "--react-multi-turn",
+        action="store_true",
+        default=False,
+        help="Enable ReAct for multi-turn."
+    )
     args = parser.parse_args()
     return args
 
@@ -245,6 +252,7 @@ def generate_results(args, model_name, test_cases_total):
             include_input_log=args.include_input_log,
             exclude_state_log=args.exclude_state_log,
             result_dir=args.result_dir,
+            react_multi_turn=args.react_multi_turn,
             update_mode=update_mode,
         )
 

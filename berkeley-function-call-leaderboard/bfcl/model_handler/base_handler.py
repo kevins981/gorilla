@@ -1,6 +1,7 @@
 import json
 import time
 from copy import deepcopy
+from typing import Optional
 
 from bfcl.constants.category_mapping import VERSION_PREFIX
 from bfcl.constants.default_prompts import (
@@ -18,6 +19,9 @@ from bfcl.model_handler.model_style import ModelStyle
 from bfcl.utils import load_file, make_json_serializable, sort_key
 from overrides import final
 
+def get_last_line(text):
+     lines = text.strip().splitlines()  # Remove surrounding whitespace and split into lines
+     return lines[-1].strip() if lines else ""  # Return the last line without leading/trailing spaces
 
 class BaseHandler:
     model_name: str
@@ -303,7 +307,7 @@ class BaseHandler:
 
     @final
     def inference_multi_turn_prompting(
-        self, test_entry: dict, include_input_log: bool, exclude_state_log: bool
+        self, test_entry: dict, include_input_log: bool, exclude_state_log: bool, react_multi_turn: Optional[bool] = False
     ) -> tuple[list[list], dict]:
         initial_config: dict = test_entry["initial_config"]
         involved_classes: list = test_entry["involved_classes"]
@@ -404,6 +408,7 @@ class BaseHandler:
                 # Add to the current_turn_inference_log at beginning of each step so that we don't need to bother dealing with the break statements
                 current_turn_inference_log[f"step_{count}"] = current_step_inference_log
 
+                #print(f"===== model input ", inference_data)
                 api_response, query_latency = self._query_prompting(inference_data)
 
                 # This part of logging is disabled by default because it is too verbose and will make the result file extremely large
@@ -445,7 +450,15 @@ class BaseHandler:
 
                 # Try decoding the model response
                 try:
-                    decoded_model_responses = self.decode_execute(model_responses)
+                    if react_multi_turn:
+                        print(f"!!!! raw model response", model_responses)
+                        model_actions = get_last_line(model_responses)
+                        print(f"!!!! processed model response", model_actions)
+                    else:
+                        print("not using react!")
+                        model_actions = model_responses
+                        print(f"Model action", model_actions)
+                    decoded_model_responses = self.decode_execute(model_actions)
                     current_step_inference_log.append(
                         {
                             "role": "handler_log",

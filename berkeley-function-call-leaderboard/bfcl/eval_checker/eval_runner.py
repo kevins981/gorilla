@@ -42,7 +42,7 @@ def get_last_line(text):
 
 
 def multi_turn_runner(
-    handler, model_result, prompt, possible_answer, model_name, test_category, score_dir
+    handler, model_result, prompt, possible_answer, model_name, test_category, score_dir, extract_last_line
 ):
     #assert (
     #    len(model_result) == len(prompt) == len(possible_answer)
@@ -112,6 +112,12 @@ def multi_turn_runner(
             for model_result_item in single_turn_model_result_list:
                 # model_result_item is per step
                 try:
+                    if extract_last_line:
+                        # User for ReAct
+                        print("Extracting last line for ReAct")
+                        # for ReAct style LLMs, extract the last line as function call
+                        model_result_item = get_last_line(model_result_item)
+                        print("[DEBUG] Extracted results", model_result_item)
                     decoded_result: list[str] = handler.decode_execute(model_result_item)
                     if is_empty_execute_response(decoded_result):
                         # Empty output is not considered as a valid function call
@@ -644,6 +650,7 @@ def evaluate_task(
                 model_name,
                 test_category,
                 score_dir,
+                extract_last_line,
             )
 
         # Single turn test
