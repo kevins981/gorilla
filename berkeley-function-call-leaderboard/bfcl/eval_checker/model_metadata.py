@@ -476,6 +476,30 @@ MODEL_METADATA_MAPPING = {
         "Google",
         "gemma-terms-of-use",
     ],
+    "google/gemma-3-1b-it": [
+        "Gemma-3-1b-it (Prompt)",
+        "https://blog.google/technology/developers/gemma-open-models/",
+        "Google",
+        "gemma-terms-of-use",
+    ],
+    "google/gemma-3-4b-it": [
+        "Gemma-3-4b-it (Prompt)",
+        "https://blog.google/technology/developers/gemma-open-models/",
+        "Google",
+        "gemma-terms-of-use",
+    ],
+    "google/gemma-3-12b-it": [
+        "Gemma-3-12b-it (Prompt)",
+        "https://blog.google/technology/developers/gemma-open-models/",
+        "Google",
+        "gemma-terms-of-use",
+    ],
+    "google/gemma-3-27b-it": [
+        "Gemma-3-27b-it (Prompt)",
+        "https://blog.google/technology/developers/gemma-open-models/",
+        "Google",
+        "gemma-terms-of-use",
+    ],
     "glaiveai/glaive-function-calling-v1": [
         "Glaive-v1 (FC)",
         "https://huggingface.co/glaiveai/glaive-function-calling-v1",
@@ -800,6 +824,12 @@ MODEL_METADATA_MAPPING = {
         "Qwen",
         "apache-2.0",
     ],
+    "Qwen/Qwen2.5-32B-Instruct-AWQ": [
+        "Qwen2.5-32B-Instruct-AWQ (Prompt)",
+        "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct-AWQ",
+        "Qwen",
+        "apache-2.0",
+    ],
     "Qwen/Qwen2.5-72B-Instruct-FC": [
         "Qwen2.5-72B-Instruct (FC)",
         "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct",
@@ -887,6 +917,12 @@ MODEL_METADATA_MAPPING = {
     "Qwen/QwQ-32B-Preview": [
         "QwQ-32B-Preview (Prompt)",
         "https://huggingface.co/Qwen/QwQ-32B-Preview",
+        "Qwen",
+        "apache-2.0",
+    ],
+    "Qwen/QwQ-32B-AWQ": [
+        "QwQ-32B-AWQ (Prompt)",
+        "https://huggingface.co/Qwen/QwQ-32B-AWQ",
         "Qwen",
         "apache-2.0",
     ],
