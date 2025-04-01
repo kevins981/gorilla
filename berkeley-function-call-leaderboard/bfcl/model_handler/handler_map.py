@@ -52,6 +52,7 @@ api_inference_handler_map = {
     "o3-mini-2025-01-31": OpenAIHandler,
     "gpt-4o-2024-11-20": OpenAIHandler,
     "gpt-4o-2024-11-20-FC": OpenAIHandler,
+    "gpt-4o-mini": OpenAIHandler,
     "gpt-4o-mini-2024-07-18": OpenAIHandler,
     "gpt-4o-mini-2024-07-18-FC": OpenAIHandler,
     "gpt-4-turbo-2024-04-09": OpenAIHandler,

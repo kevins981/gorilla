@@ -37,7 +37,7 @@ class BaseHandler:
         self.temperature = temperature
         self.is_fc_model = False  # Whether the model is a function calling model
 
-    def inference(self, test_entry: dict, include_input_log: bool, exclude_state_log: bool):
+    def inference(self, test_entry: dict, include_input_log: bool, exclude_state_log: bool, react_multi_turn: Optional[bool] = False):
         # This method is used to retrive model response for each model.
 
         # FC model
@@ -53,7 +53,7 @@ class BaseHandler:
         else:
             if "multi_turn" in test_entry["id"]:
                 return self.inference_multi_turn_prompting(
-                    test_entry, include_input_log, exclude_state_log
+                    test_entry, include_input_log, exclude_state_log, react_multi_turn
                 )
             else:
                 return self.inference_single_turn_prompting(test_entry, include_input_log)
@@ -364,8 +364,14 @@ class BaseHandler:
         inference_data: dict = self._pre_query_processing_prompting(test_entry)
 
         all_multi_turn_messages: list[list[dict]] = test_entry["question"]
+
+        task_start_time = time.time()
+        task_latency = 0
+        turn_latencies = []
+
         for turn_idx, current_turn_message in enumerate(all_multi_turn_messages):
             current_turn_message: list[dict]
+            turn_start_time = time.time()
 
             if str(turn_idx) in holdout_function:
                 assert (
@@ -451,11 +457,11 @@ class BaseHandler:
                 # Try decoding the model response
                 try:
                     if react_multi_turn:
-                        print(f"!!!! raw model response", model_responses)
+                        print(f"[DEBUG] Using ReACT. Raw model response:\n", model_responses)
                         model_actions = get_last_line(model_responses)
-                        print(f"!!!! processed model response", model_actions)
+                        print(f"[DEBUG] Processed model response:", model_actions)
                     else:
-                        print("not using react!")
+                        print("[ERROR] Not using react!")
                         model_actions = model_responses
                         print(f"Model action", model_actions)
                     decoded_model_responses = self.decode_execute(model_actions)
@@ -556,6 +562,9 @@ class BaseHandler:
                     )
                 all_inference_log.append(state_log)
 
+            turn_end_time = time.time()
+            turn_latencies.append(turn_end_time - turn_start_time)
+
             if force_quit:
                 break
 
@@ -572,6 +581,12 @@ class BaseHandler:
         ):
             metadata["reasoning_content"] = all_reasoning_content
 
+        task_end_time = time.time()
+
+        task_end_time = time.time()
+        task_latency = task_end_time - task_start_time
+        print(f"[STAT] Task {test_entry_id} total latency = {task_latency}")
+        print(f"[STAT] Turn latencies: {turn_latencies}")
         return all_model_response, metadata
 
     @final

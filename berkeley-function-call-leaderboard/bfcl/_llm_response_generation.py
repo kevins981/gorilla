@@ -186,8 +186,8 @@ def process_multi_turn_test_case(test_cases):
     return test_cases
 
 
-def multi_threaded_inference(handler, test_case, include_input_log, exclude_state_log):
-
+def multi_threaded_inference(handler, test_case, include_input_log, exclude_state_log, react_multi_turn):
+                        
     assert type(test_case["function"]) is list
 
     retry_count = 0
@@ -195,7 +195,7 @@ def multi_threaded_inference(handler, test_case, include_input_log, exclude_stat
     while True:
         try:
             result, metadata = handler.inference(
-                deepcopy(test_case), include_input_log, exclude_state_log
+                deepcopy(test_case), include_input_log, exclude_state_log, react_multi_turn
             )
             break  # Success, exit the loop
         except Exception as e:
@@ -270,6 +270,7 @@ def generate_results(args, model_name, test_cases_total):
                         test_case,
                         args.include_input_log,
                         args.exclude_state_log,
+                        args.react_multi_turn,
                     )
                     futures.append(future)
 
