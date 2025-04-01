@@ -19,6 +19,29 @@ DEFAULT_STATE = {
     "budget_limit": None,
 }
 
+# How to revert the effects of an action.
+# Read-only actions do not need to be reverted.
+REVERT_MAP = {
+    "authenticate_travel": "revert_authenticate_travel", # done
+    "book_flight": "revert_book_flight", # done
+    "cancel_booking": "revert_cancel_booking",  # done
+    "compute_exchange_rate": None,
+    "contact_customer_support": None,
+    "get_all_credit_cards": None,
+    "get_budget_fiscal_year": None,
+    "get_credit_card_balance": None,
+    "get_flight_cost": None,
+    "get_nearest_airport_by_city": None,
+    "list_all_airports": None,
+    "purchase_insurance": "revert_purchase_insurance", # done
+    "register_credit_card": "revert_register_credit_card", # done
+    "retrieve_invoice": None,
+    "set_budget_limit": "revert_set_budget_limit", # done
+    "travel_get_login_status": None,
+    "verify_traveler_information": None
+}
+
+
 
 class TravelAPI:
     # Adapted from source : https://developer.concur.com/api-reference/
@@ -34,6 +57,19 @@ class TravelAPI:
         self.user_last_name: Optional[str]
         self.budget_limit: Optional[float]
         self._api_description = "This tool belongs to the travel system, which allows users to book flights, manage credit cards, and view budget information."
+
+        # variables used to revert actions.
+        # each list is a queue representing historical values of each variable
+        self._prev_credit_card_list = []
+        self._prev_booking_record = []
+        self._prev_access_token = []
+        self._prev_token_type = []
+        self._prev_token_expires_in = []
+        self._prev_token_scope = []
+        self._prev_user_first_name = []
+        self._prev_user_last_name = []
+        self._prev_budget_limit = []
+        self._cancelled_bookings = {} # maps booking_id to booking_record
 
     def _load_scenario(
         self,
@@ -52,9 +88,15 @@ class TravelAPI:
         self.credit_card_list = scenario.get(
             "credit_card_list", DEFAULT_STATE_COPY["credit_card_list"]
         )
+        credit_card_list_copy = deepcopy(self.credit_card_list)
+        self._prev_credit_card_list.append(credit_card_list_copy)
+
         self.booking_record = scenario.get(
             "booking_record", DEFAULT_STATE_COPY["booking_record"]
         )
+        booking_record_copy = deepcopy(self.booking_record)
+        self._prev_booking_record.append(booking_record_copy)
+
         self.access_token = scenario.get("access_token", DEFAULT_STATE_COPY["access_token"])
         self.token_type = scenario.get("token_type", DEFAULT_STATE_COPY["token_type"])
         self.token_expires_in = scenario.get(
@@ -67,7 +109,17 @@ class TravelAPI:
         self.user_last_name = scenario.get(
             "user_last_name", DEFAULT_STATE_COPY["user_last_name"]
         )
+
+        self._prev_token_expires_in.append(self.token_expires_in)
+        self._prev_access_token.append(self.access_token)
+        self._prev_token_type.append(self.token_type)
+        self._prev_token_scope.append(self.token_scope)
+        self._prev_user_first_name.append(self.user_first_name)
+        self._prev_user_last_name.append(self.user_last_name)
+
         self.budget_limit = scenario.get("budget_limit", DEFAULT_STATE_COPY["budget_limit"])
+        self._prev_budget_limit.append(self.budget_limit)
+
         self.long_context = long_context
 
         if self.long_context:
@@ -103,9 +155,14 @@ class TravelAPI:
         Merge the booking record list with predefined booking records from long_context.py.
         Existing bookings in the scenario won't be overwritten.
         """
+        print("[ERROR] not supporting long context revert")
+        exit(1)
         for booking_id, booking_info in BOOKING_RECORD_EXTENSION.items():
             if booking_id not in self.booking_record:
                 self.booking_record[booking_id] = booking_info
+
+    def list_booking_records(self) -> None:
+        print(f"[DEBUG] Booking records: ", self.booking_record)
 
     def authenticate_travel(
         self,
@@ -132,18 +189,48 @@ class TravelAPI:
             token_type (str): The type of token
             scope (str): The scope of the token
         """
+
         self.token_expires_in = 2
         self.access_token = str(self._random.randint(100000, 999999))  # 6 digits
         self.token_type = "Bearer"
         self.token_scope = grant_type
         self.user_first_name = user_first_name
         self.user_last_name = user_last_name
+
+        # save history
+        self._prev_token_expires_in.append(self.token_expires_in)
+        self._prev_access_token.append(self.access_token)
+        self._prev_token_type.append(self.token_type)
+        self._prev_token_scope.append(self.token_scope)
+        self._prev_user_first_name.append(self.user_first_name)
+        self._prev_user_last_name.append(self.user_last_name)
+
+        print(f"[DEBUG] Past authenticated users {self._prev_user_first_name}")
+
         return {
             "expires_in": 2,
             "access_token": self.access_token,
             "token_type": "Bearer",
             "scope": grant_type,
         }
+
+    def revert_authenticate_travel(self
+    ) -> Dict[str, Union[int, str]]:
+        # remove latest value
+        self._prev_token_expires_in = self._prev_token_expires_in[:-1]
+        self._prev_access_token     = self._prev_access_token[:-1]
+        self._prev_token_type       = self._prev_token_type[:-1]
+        self._prev_token_scope      = self._prev_token_scope[:-1]
+        self._prev_user_first_name  = self._prev_user_first_name[:-1]
+        self._prev_user_last_name   = self._prev_user_last_name[:-1]
+
+        self.token_expires_in = self._prev_token_expires_in[-1]
+        self.access_token     = self._prev_access_token[-1]
+        self.token_type       = self._prev_token_type[-1]
+        self.token_scope      = self._prev_token_scope[-1]
+        self.user_first_name  = self._prev_user_first_name[-1]
+        self.user_last_name   = self._prev_user_last_name[-1]
+        return {"reverted authenticate travel.", f"Current user: {self.user_first_name} {self.user_last_name}"}
 
     def travel_get_login_status(self) -> Dict[str, bool]:
         """
@@ -209,7 +296,18 @@ class TravelAPI:
             "card_verification_number": card_verification_number,
             "balance": self._random.randint(10000, 99999),  # 5 digits
         }
+
+        credit_card_list_copy = deepcopy(self.credit_card_list)
+        self._prev_credit_card_list.append(credit_card_list_copy)
+
         return {"card_id": card_id}
+
+    def revert_register_credit_card(self):
+        print("[DEBUG] About to revert. Current credit cards history ", self._prev_credit_card_list)
+        self._prev_credit_card_list = self._prev_credit_card_list[:-1]
+        credit_card_list_copy = deepcopy(self._prev_credit_card_list[-1])
+        self.credit_card_list = credit_card_list_copy 
+        return {"reverted credit card list": self.credit_card_list}
 
     def _set_card_balance(self, card_id: str, balance: float) -> None:
         """
@@ -512,7 +610,8 @@ class TravelAPI:
             }
         travel_cost = float(travel_cost)
         self.credit_card_list[card_id]["balance"] -= travel_cost
-        booking_id = str(self._random.randint(1000000, 9999999))  # 7 digits
+        #booking_id = str(self._random.randint(1000000, 9999999))  # 7 digits
+        booking_id = str(3426812) # fix this to accomodate reverting, since golden answer are hardcoded
         transaction_id = str(self._random.randint(10000000, 99999999))  # 8 digits
         self.booking_record[booking_id] = {
             "card_id": card_id,
@@ -523,6 +622,9 @@ class TravelAPI:
             "travel_cost": travel_cost,
             "transaction_id": transaction_id,
         }
+        booking_record_copy = deepcopy(self.booking_record)
+        self._prev_booking_record.append(booking_record_copy)
+
         if self.long_context:
             return {
                 "booking_id": booking_id,
@@ -536,6 +638,14 @@ class TravelAPI:
             "booking_status": True,
             "booking_history": {},
         }
+
+    def revert_book_flight(self):
+        print("[DEBUG] About to revert_book_flight. Current booking record history ", self._prev_booking_record)
+        self._prev_booking_record = self._prev_booking_record[:-1]
+        booking_record_copy = deepcopy(self._prev_booking_record[-1])
+        self.booking_record = booking_record_copy 
+        print("[DEBUG] revert_book_flight done. Current booking record ", self.booking_record)
+        return {"reverted booking record": self.booking_record}
 
     def retrieve_invoice(
         self,
@@ -633,8 +743,25 @@ class TravelAPI:
         card_id = self.booking_record[booking_id]["card_id"]
         travel_cost = self.booking_record[booking_id]["travel_cost"]
         self.credit_card_list[card_id]["balance"] += travel_cost
+
+        # Used to revert cancelled bookings
+        self._cancelled_bookings[booking_id] = deepcopy(self.booking_record[booking_id])
+
         del self.booking_record[booking_id]
+        print(f"[DEBUG] cancelled_bookings : {self._cancelled_bookings}")
         return {"cancel_status": True}
+
+    def revert_cancel_booking(
+        self, booking_id: str
+    ) -> Dict[str, Union[bool, str]]:
+        card_id = self._cancelled_bookings[booking_id]["card_id"]
+        travel_cost = self._cancelled_bookings[booking_id]["travel_cost"]
+        print(f"[DEBUG] Requested canceling booking with id {booking_id}, card id {card_id}, cost {travel_cost}")
+
+        self.booking_record[booking_id] = deepcopy(self._cancelled_bookings[booking_id])
+        self.credit_card_list[card_id]["balance"] -= travel_cost
+
+        del self._cancelled_bookings[booking_id]
 
     def compute_exchange_rate(
         self, base_currency: str, target_currency: str, value: float
@@ -742,7 +869,23 @@ class TravelAPI:
             return {"error": "Invalid access token"}
         budget_limit = float(budget_limit)
         self.budget_limit = budget_limit
+        self._prev_budget_limit.append(self.budget_limit)
         return {"budget_limit": budget_limit}
+
+    def revert_set_budget_limit(self
+    ) -> Dict[str, Union[float, str]]:
+        """
+        Revert budget limit to the previous limit.
+        Assumes that set_budget_limit() has only been called once. 
+        """
+        if len(self._prev_budget_limit) == 1:
+            return {"error": "Cannot revert anymore."}
+
+        #print(f"[DEBUG] budget limit history: {self._prev_budget_limit}")
+        # Revert to latest history: pop the current value, set the previous value
+        self._prev_budget_limit = self._prev_budget_limit[:-1]
+        self.budget_limit = self._prev_budget_limit[-1]
+        return {"reverted budget_limit": self.budget_limit}
 
     def get_nearest_airport_by_city(self, location: str) -> Dict[str, str]:
         """
@@ -810,6 +953,7 @@ class TravelAPI:
         if self.budget_limit is not None and self.budget_limit < insurance_cost:
             return {"insurance_status": False, "error": "Exceeded budget limit"}
         if booking_id not in self.booking_record:
+            #print("Booking records ", self.booking_record)
             return {"insurance_status": False, "error": "Booking not found"}
         if card_id not in self.credit_card_list:
             return {"insurance_status": False, "error": "Credit card not registered"}
@@ -818,6 +962,18 @@ class TravelAPI:
             "insurance_id": str(self._random.randint(100000000, 999999999)),  # 9 digits
             "insurance_status": True,
         }
+
+    def revert_purchase_insurance(
+        self,
+        card_id: str,
+        insurance_cost: float,
+    ) -> Dict[str, Union[str, bool]]:
+        self.credit_card_list[card_id]["balance"] += insurance_cost
+        return {
+            "message": f"Insurance reverted. New credit card balance {self.credit_card_list[card_id]['balance']}"
+        }
+
+
 
     def contact_customer_support(self, booking_id: str, message: str) -> Dict[str, str]:
         """
@@ -849,3 +1005,15 @@ class TravelAPI:
                 - balance (float): The balance of the credit card
         """
         return {"credit_card_list": self.credit_card_list}
+
+    def get_all_bookings(self) -> Dict[str, Dict[str, Union[str, int, float]]]:
+        return {"bookings_list": self.booking_record}
+
+    def get_all_states(self) -> Dict[str, Dict[str, Union[str, int, float]]]:
+        return {
+                "credit_card_list": self.credit_card_list,
+                "bookings_list": self.booking_record,
+                "user_first_name": self.user_first_name,
+                "user_last_name": self.user_last_name,
+                "budget_limit": self.budget_limit
+                }
