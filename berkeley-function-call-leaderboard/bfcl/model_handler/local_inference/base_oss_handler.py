@@ -34,6 +34,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         self.vllm_port = os.getenv("VLLM_PORT", VLLM_PORT)
 
         self.base_url = f"http://{self.vllm_host}:{self.vllm_port}/v1"
+        print("vllm base url ", self.base_url)
         self.client = OpenAI(base_url=self.base_url, api_key="EMPTY")
 
     @override
@@ -181,7 +182,6 @@ class OSSHandler(BaseHandler, EnforceOverrides):
                     response = requests.get(f"{self.base_url}/models")
                     if response.status_code == 200:
                         server_ready = True
-                        print("server is ready!")
                 except requests.exceptions.ConnectionError:
                     # If the connection is not ready, wait and try again
                     time.sleep(1)
@@ -192,7 +192,10 @@ class OSSHandler(BaseHandler, EnforceOverrides):
 
             # Once the server is ready, make the completion requests
             futures = []
-            with ThreadPoolExecutor(max_workers=100) as executor:
+            workers = 1
+            print(f"[INFO] Using {workers} workers for generation.")
+            #workers = 100
+            with ThreadPoolExecutor(max_workers=workers) as executor:
                 with tqdm(
                     total=len(test_entries),
                     desc=f"Generating results for {self.model_name}",
