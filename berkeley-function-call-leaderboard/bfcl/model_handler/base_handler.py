@@ -635,12 +635,16 @@ class BaseHandler:
                     print(f"[STAT] Verifier inference time {verifier_end_time - verifier_start_time}")
 
                     # vLLM output
-                    print(f"===== verifier output {verifier_response.choices[0].text}")
-                    # OpenAI API output
-                    #print(f"===== verifier output {verifier_response.choices[0].message.content} \n{verifier_response.usage}")
+                    if "gpt" in self.model_name_underline_replaced:
+                        # OpenAI API
+                        print(f"===== GPT verifier output {verifier_response.choices[0].message.content} \n{verifier_response.usage}")
+                        verifier_response_str = verifier_response.choices[0].message.content
+                    elif "Qwen" in self.model_name_underline_replaced or "QwQ" in self.model_name_underline_replaced:
+                        # vLLM local 
+                        print(f"===== vLLM verifier output {verifier_response.choices[0].text}")
+                        verifier_response_str = verifier_response.choices[0].text
 
-                    #revert_step_number = extract_revert_number(verifier_response.choices[0].message.content)
-                    revert_step_number = extract_revert_number(verifier_response.choices[0].text)
+                    revert_step_number = extract_revert_number(verifier_response_str)
                     #print(f"== verifier wants to revert to step {revert_step_number}")
                     # loop through actions that need to be reverted. 
                     # E.g. the drafter performed [act0, act1] in step 0, [act2] in step 1, [act3, act4]
@@ -682,8 +686,7 @@ class BaseHandler:
                         # Revert finished. Now execute the verifier action
                         # Decode verifier output
                         try:
-                            #verifier_actions = extract_verifier_action(verifier_response.choices[0].message.content)
-                            verifier_actions = extract_verifier_action(verifier_response.choices[0].text)
+                            verifier_actions = extract_verifier_action(verifier_response_str)
                             print("raw verifier actions: ", verifier_actions)
                             decoded_verifier_actions = self.decode_execute(verifier_actions)
                             print("decoded verifier actions: ", decoded_verifier_actions)
@@ -704,9 +707,6 @@ class BaseHandler:
                         #   system message, turn question, step 1 action, step 1 tool response, step 2 action, step 2 tool response etc.
                         # Therefore, if we want to revert i steps, we delete the last 2*i chat history
                         num_steps_to_revert = count - revert_step_number
-                        #inference_data['message'] = inference_data['message'][:2*revert_step_number+2]
-                        #TODO this is not always correct. Some times its the last 2*i+1 messages.
-                        #inference_data['message'] = inference_data['message'][:-num_steps_to_revert*2 or None]  # or None to handle num_steps_to_revert == 0
 
                         #print("step_to_inference_data_map", step_to_inference_data_map)
                         revert_step_inference_data = step_to_inference_data_map[revert_step_number]
@@ -714,10 +714,8 @@ class BaseHandler:
                         inference_data['message'] = inference_data['message'][:revert_step_inference_idx or None]  # or None to handle num_steps_to_revert == 0
 
                         # Delete invalidated drafter responses used for evaluation
-                        #print("!!! current_turn_response  before ", current_turn_response)
                         current_turn_response = current_turn_response[:-1 or None] # remove the response recorded at the terminating step
                         current_turn_response = current_turn_response[:-num_steps_to_revert or None] 
-                        #print("!!! current_turn_response  after ", current_turn_response)
 
                         cur_turn_actions = cur_turn_actions[:-num_steps_to_revert or None] 
                         cur_turn_actions.append(decoded_verifier_actions)
@@ -725,9 +723,7 @@ class BaseHandler:
                         count = revert_step_number # revert step count
                         print("step count reverted back to ", count)
                         # update drafter actions
-                        #print("drafter trace before ", drafter_trace)
                         drafter_trace = drafter_trace[:revert_step_number]
-                        #print("drafter trace reverted back to ", drafter_trace)
                         drafter_trace.append([]) # add back for current step
 
                         step_to_inference_data_map = step_to_inference_data_map[:revert_step_number]
@@ -736,11 +732,12 @@ class BaseHandler:
                         decoded_model_responses = decoded_verifier_actions 
 
                         # Extract verifier action and add to the chat history
-                        #verifier_response.choices[0].message.content = verifier_actions
-                        verifier_response.choices[0].text = verifier_actions
+                        if "gpt" in self.model_name_underline_replaced:
+                            verifier_response.choices[0].message.content = verifier_actions
+                        elif "Qwen" in self.model_name_underline_replaced or "QwQ" in self.model_name_underline_replaced:
+                            verifier_response.choices[0].text = verifier_actions
+
                         verifier_response_data = self._parse_query_response_prompting(verifier_response)
-                        #print("== verifier_response before ", verifier_response_data['model_responses_message_for_chat_history'])
-                        #verifier_response_data['model_responses_message_for_chat_history'].content = verifier_actions
 
                         # Add verifier action to trace
                         drafter_trace[count].append({"assistant":verifier_response_data["model_responses"]})
@@ -752,10 +749,8 @@ class BaseHandler:
 
                         # Add verifier action to results
                         current_turn_response.append(verifier_actions)
-                        print("!!! added verifier out to current_turn_response ", current_turn_response)
-
                     else: 
-                        # verifier happy. finish current turn
+                        # Verifier happy. finish current turn
                         break
 
                 # Obtain the execution results
