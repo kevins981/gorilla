@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
+from pprint import pprint
 
 DEFAULT_STATE = {
     "ticket_queue": [],
@@ -32,6 +33,23 @@ class TicketAPI:
         self.current_user: Optional[str]
         self._api_description = "This tool belongs to the ticketing system that is part of a company, which allows users to create, view, and manage support business tickets."
 
+        self._ticket_queue_history = []
+        self._ticket_counter_history = []
+        self._current_user_history = []
+
+    def _save_history(self, obj, history) -> None:
+        # Save obj into history list by creating a copy.
+        # Assume history is a list that contains different versions of obj
+        obj_cp = deepcopy(obj)
+        history.append(obj_cp)
+
+    def _revert(self, history) -> None:
+        # Returns the reverted value
+        # Remove current value
+        history.pop()
+        # Restore previous value
+        return history[-1]
+
     def _load_scenario(self, scenario: dict, long_context=False) -> None:
         """
         Load a scenario into the ticket queue.
@@ -45,6 +63,12 @@ class TicketAPI:
             "ticket_counter", DEFAULT_STATE_COPY["ticket_counter"]
         )
         self.current_user = scenario.get("current_user", DEFAULT_STATE_COPY["current_user"])
+
+        self._save_history(self.ticket_queue, self._ticket_queue_history)
+        self._save_history(self.ticket_counter, self._ticket_counter_history)
+        self._save_history(self.current_user, self._current_user_history)
+
+        #print(f"[DEBUG] loaded scenario. Ticker queue {self.ticket_queue}, cur user {self.current_user}")
 
     def create_ticket(
         self, title: str, description: str = "", priority: int = 1
@@ -78,7 +102,15 @@ class TicketAPI:
         }
         self.ticket_queue.append(ticket)
         self.ticket_counter += 1
+
+        self._save_history(self.ticket_queue, self._ticket_queue_history)
+        self._save_history(self.ticket_counter, self._ticket_counter_history)
+
         return ticket
+
+    def revert_create_ticket(self) -> None:
+        self.ticket_queue = self._revert(self._ticket_queue_history)
+        self.ticket_counter = self._revert(self._ticket_counter_history)
 
     def get_ticket(self, ticket_id: int) -> Dict[str, Union[int, str]]:
         """
@@ -116,7 +148,13 @@ class TicketAPI:
         if ticket["status"] == "Closed":
             return {"error": f"Ticket with ID {ticket_id} is already closed."}
         ticket["status"] = "Closed"
+
+        self._save_history(self.ticket_queue, self._ticket_queue_history)
+
         return {"status": f"Ticket {ticket_id} has been closed successfully."}
+
+    def revert_close_ticket(self) -> None:
+        self.ticket_queue = self._revert(self._ticket_queue_history)
 
     def resolve_ticket(self, ticket_id: int, resolution: str) -> Dict[str, str]:
         """
@@ -136,7 +174,13 @@ class TicketAPI:
             return {"error": f"Ticket with ID {ticket_id} is already resolved."}
         ticket["status"] = "Resolved"
         ticket["resolution"] = resolution
+
+        self._save_history(self.ticket_queue, self._ticket_queue_history)
+
         return {"status": f"Ticket {ticket_id} has been resolved successfully."}
+
+    def revert_resolve_ticket(self) -> None:
+        self.ticket_queue = self._revert(self._ticket_queue_history)
 
     def edit_ticket(
         self, ticket_id: int, updates: Dict[str, Optional[Union[str, int]]]
@@ -168,7 +212,12 @@ class TicketAPI:
             if value is not None:
                 ticket[key] = value
 
+        self._save_history(self.ticket_queue, self._ticket_queue_history)
+
         return {"status": f"Ticket {ticket_id} has been updated successfully."}
+
+    def revert_edit_ticket(self) -> None:
+        self.ticket_queue = self._revert(self._ticket_queue_history)
 
     def _find_ticket(self, ticket_id: int) -> Optional[Dict[str, Union[int, str]]]:
         """
@@ -204,8 +253,14 @@ class TicketAPI:
         # In a real system, you would validate the credentials against a database
         if username and password:  # Simplified authentication
             self.current_user = username
+            self._save_history(self.current_user, self._current_user_history)
             return {"success": True}
+
+        self._save_history(self.current_user, self._current_user_history)
         return {"success": False}
+
+    def revert_ticket_login(self) -> None:
+        self.current_user = self._revert(self._current_user_history)
 
     def ticket_get_login_status(self) -> Dict[str, bool]:
         """
@@ -226,8 +281,14 @@ class TicketAPI:
         """
         if self.current_user:
             self.current_user = None
+            self._save_history(self.current_user, self._current_user_history)
             return {"success": True}
+
+        self._save_history(self.current_user, self._current_user_history)
         return {"success": False}
+
+    def revert_logout(self) -> None:
+        self.current_user = self._revert(self._current_user_history)
 
     def get_user_tickets(
         self, status: Optional[str] = None
@@ -263,3 +324,9 @@ class TicketAPI:
             ]
 
         return user_tickets
+
+    def print_everything(self):
+        print("== Printing everything")
+        print(f"ticket_queue: {self.ticket_queue}")
+        print(f"ticket_counter: {self.ticket_counter}")
+        print(f"current_user: {self.current_user}")

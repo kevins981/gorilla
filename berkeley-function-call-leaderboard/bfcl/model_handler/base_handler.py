@@ -23,9 +23,10 @@ from overrides import final
 
 # all APIs can prob share this map
 ACTION_REVERT_MAP = {
-    "authenticate_travel": "revert_authenticate_travel", # done
-    "book_flight": "revert_book_flight", # done
-    "cancel_booking": "revert_cancel_booking",  # done
+    # travelAPI
+    "authenticate_travel": "revert_authenticate_travel",
+    "book_flight": "revert_book_flight",
+    "cancel_booking": "revert_cancel_booking",
     "compute_exchange_rate": None,
     "contact_customer_support": None,
     "get_all_credit_cards": None,
@@ -34,12 +35,37 @@ ACTION_REVERT_MAP = {
     "get_flight_cost": None,
     "get_nearest_airport_by_city": None,
     "list_all_airports": None,
-    "purchase_insurance": "revert_purchase_insurance", # done
-    "register_credit_card": "revert_register_credit_card", # done
+    "purchase_insurance": "revert_purchase_insurance",
+    "register_credit_card": "revert_register_credit_card",
     "retrieve_invoice": None,
-    "set_budget_limit": "revert_set_budget_limit", # done
+    "set_budget_limit": "revert_set_budget_limit",
     "travel_get_login_status": None,
-    "verify_traveler_information": None
+    "verify_traveler_information": None,
+    # ticketAPI
+    "close_ticket": "revert_close_ticket", # done
+    "create_ticket": "revert_create_ticket", # done
+    "edit_ticket": "revert_edit_ticket", #done
+    "get_ticket": None,
+    "get_user_tickets": None,
+    "logout": "revert_logout", # done
+    "resolve_ticket": "revert_resolve_ticket", # done
+    "ticket_get_login_status": None,
+    "ticket_login": "revert_ticket_login" # done
+    # twitterAPI
+    #"authenticate_twitter": "authenticate_twitter",
+    #"comment": "comment",
+    #"follow_user": "follow_user",
+    #"get_tweet": None,
+    #"get_tweet_comments": None,
+    #"get_user_stats": None,
+    #"get_user_tweets": None,
+    #"list_all_following": None,
+    #"mention": "mention",
+    #"post_tweet": "post_tweet",
+    #"posting_get_login_status": None,
+    #"retweet": "retweet",
+    #"search_tweets": None,
+    #"unfollow_user": "unfollow_user"
 }
 
 
