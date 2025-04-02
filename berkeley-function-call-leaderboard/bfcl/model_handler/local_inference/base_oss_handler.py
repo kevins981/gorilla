@@ -192,7 +192,10 @@ class OSSHandler(BaseHandler, EnforceOverrides):
 
             # Once the server is ready, make the completion requests
             futures = []
-            with ThreadPoolExecutor(max_workers=100) as executor:
+            workers = 1
+            #workers = 100
+            print(f"Using {workers} workers.")
+            with ThreadPoolExecutor(max_workers=workers) as executor:
                 with tqdm(
                     total=len(test_entries),
                     desc=f"Generating results for {self.model_name}",
