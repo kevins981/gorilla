@@ -56,7 +56,7 @@ Remember to think step by step when analyzing the assistant's attempt.
 If the previous assistant eventually correctly addressed the issue, consider it as correct.
 """
 
-TURN_REVERT_COUNT_LIMIT = 2
+TURN_REVERT_COUNT_LIMIT = 1
 
 #First, carefully analyze this previous attempt. What did the assistant do correctly or incorrectly? Remember to think step by step.
 #
@@ -447,7 +447,13 @@ class BaseHandler:
         inference_data: dict = self._pre_query_processing_prompting(test_entry)
 
         all_multi_turn_messages: list[list[dict]] = test_entry["question"]
+
+        task_start_time = time.time()
+        task_latency = 0
+
+        turn_latencies = []
         for turn_idx, current_turn_message in enumerate(all_multi_turn_messages):
+            turn_start_time = time.time()
             current_turn_message: list[dict]
             # Stores actions performed in the current turn. Used for spec actions
             cur_turn_actions = []
@@ -502,8 +508,12 @@ class BaseHandler:
                 # Add to the current_turn_inference_log at beginning of each step so that we don't need to bother dealing with the break statements
                 current_turn_inference_log[f"step_{count}"] = current_step_inference_log
 
-                print("[DEBUG] model input ", inference_data['message'])
+                #print("[DEBUG] model input ", inference_data['message'])
+                
+                drafter_start_time = time.time()
                 api_response, query_latency = self._query_prompting(inference_data)
+                drafter_end_time = time.time()
+                print(f"[STAT] Drafter inference time {drafter_end_time - drafter_start_time}")
 
                 # This part of logging is disabled by default because it is too verbose and will make the result file extremely large
                 # It is only useful to see if the inference pipeline is working as expected (eg, does it convert all the inputs correctly)
@@ -618,15 +628,20 @@ class BaseHandler:
                         verifier_input['message'][-1]['content'] += f"Step {step_id}: {step_trace}\n"
 
                     # Run verifier 
-                    print("verifier input ", verifier_input)
+                    #print("verifier input ", verifier_input)
+                    verifier_start_time = time.time()
                     verifier_response, verifier_latency = self._query_prompting(verifier_input)
-                    # vLLM output
-                    #print(f"===== verifier output {verifier_response}")
-                    # OpenAI API output
-                    print(f"===== verifier output {verifier_response.choices[0].message.content} \n{verifier_response.usage}")
+                    verifier_end_time = time.time()
+                    print(f"[STAT] Verifier inference time {verifier_end_time - verifier_start_time}")
 
-                    revert_step_number = extract_revert_number(verifier_response.choices[0].message.content)
-                    print(f"== verifier wants to revert to step {revert_step_number}")
+                    # vLLM output
+                    print(f"===== verifier output {verifier_response.choices[0].text}")
+                    # OpenAI API output
+                    #print(f"===== verifier output {verifier_response.choices[0].message.content} \n{verifier_response.usage}")
+
+                    #revert_step_number = extract_revert_number(verifier_response.choices[0].message.content)
+                    revert_step_number = extract_revert_number(verifier_response.choices[0].text)
+                    #print(f"== verifier wants to revert to step {revert_step_number}")
                     # loop through actions that need to be reverted. 
                     # E.g. the drafter performed [act0, act1] in step 0, [act2] in step 1, [act3, act4]
                     # If the verifier decides that step 1 is incorrect, 
@@ -634,8 +649,8 @@ class BaseHandler:
                     if revert_step_number >= 0:
                         turn_revert_count += 1
                         # Verifier decides to revert
-                        print(f"== cur turn all actions {cur_turn_actions}")
-                        print(f"== listing actions to be reverted from step {count} to {revert_step_number} ")
+                        #print(f"== cur turn all actions {cur_turn_actions}")
+                        #print(f"== listing actions to be reverted from step {count} to {revert_step_number} ")
                         for cur_step in reversed(range(revert_step_number, count)):
                             # Iterate through each step to be reverted backwards
                             cur_step_actions = cur_turn_actions[cur_step]
@@ -667,7 +682,8 @@ class BaseHandler:
                         # Revert finished. Now execute the verifier action
                         # Decode verifier output
                         try:
-                            verifier_actions = extract_verifier_action(verifier_response.choices[0].message.content)
+                            #verifier_actions = extract_verifier_action(verifier_response.choices[0].message.content)
+                            verifier_actions = extract_verifier_action(verifier_response.choices[0].text)
                             print("raw verifier actions: ", verifier_actions)
                             decoded_verifier_actions = self.decode_execute(verifier_actions)
                             print("decoded verifier actions: ", decoded_verifier_actions)
@@ -687,34 +703,31 @@ class BaseHandler:
                         # The chat history has for following format:
                         #   system message, turn question, step 1 action, step 1 tool response, step 2 action, step 2 tool response etc.
                         # Therefore, if we want to revert i steps, we delete the last 2*i chat history
-                        print("inference data before ", inference_data)
                         num_steps_to_revert = count - revert_step_number
-                        print("num_steps_to_revert ", num_steps_to_revert)
                         #inference_data['message'] = inference_data['message'][:2*revert_step_number+2]
                         #TODO this is not always correct. Some times its the last 2*i+1 messages.
                         #inference_data['message'] = inference_data['message'][:-num_steps_to_revert*2 or None]  # or None to handle num_steps_to_revert == 0
 
-                        print("step_to_inference_data_map", step_to_inference_data_map)
+                        #print("step_to_inference_data_map", step_to_inference_data_map)
                         revert_step_inference_data = step_to_inference_data_map[revert_step_number]
                         revert_step_inference_idx = inference_data['message'].index(revert_step_inference_data)
                         inference_data['message'] = inference_data['message'][:revert_step_inference_idx or None]  # or None to handle num_steps_to_revert == 0
 
                         # Delete invalidated drafter responses used for evaluation
-                        print("!!! current_turn_response  before ", current_turn_response)
+                        #print("!!! current_turn_response  before ", current_turn_response)
                         current_turn_response = current_turn_response[:-1 or None] # remove the response recorded at the terminating step
                         current_turn_response = current_turn_response[:-num_steps_to_revert or None] 
-                        print("!!! current_turn_response  after ", current_turn_response)
+                        #print("!!! current_turn_response  after ", current_turn_response)
 
                         cur_turn_actions = cur_turn_actions[:-num_steps_to_revert or None] 
                         cur_turn_actions.append(decoded_verifier_actions)
 
-                        print("inference data after ", inference_data)
                         count = revert_step_number # revert step count
                         print("step count reverted back to ", count)
                         # update drafter actions
-                        print("drafter trace before ", drafter_trace)
+                        #print("drafter trace before ", drafter_trace)
                         drafter_trace = drafter_trace[:revert_step_number]
-                        print("drafter trace reverted back to ", drafter_trace)
+                        #print("drafter trace reverted back to ", drafter_trace)
                         drafter_trace.append([]) # add back for current step
 
                         step_to_inference_data_map = step_to_inference_data_map[:revert_step_number]
@@ -723,7 +736,8 @@ class BaseHandler:
                         decoded_model_responses = decoded_verifier_actions 
 
                         # Extract verifier action and add to the chat history
-                        verifier_response.choices[0].message.content = verifier_actions
+                        #verifier_response.choices[0].message.content = verifier_actions
+                        verifier_response.choices[0].text = verifier_actions
                         verifier_response_data = self._parse_query_response_prompting(verifier_response)
                         #print("== verifier_response before ", verifier_response_data['model_responses_message_for_chat_history'])
                         #verifier_response_data['model_responses_message_for_chat_history'].content = verifier_actions
@@ -812,6 +826,10 @@ class BaseHandler:
                         }
                     )
                 all_inference_log.append(state_log)
+            
+
+            turn_end_time = time.time()
+            turn_latencies.append(turn_end_time - turn_start_time)
 
             if force_quit:
                 break
@@ -828,6 +846,11 @@ class BaseHandler:
             for single_turn_reasoning_content in all_reasoning_content
         ):
             metadata["reasoning_content"] = all_reasoning_content
+
+        task_end_time = time.time()
+        task_latency = task_end_time - task_start_time 
+        print(f"[STAT] Task {test_entry_id} total latency = {task_latency}")
+        print(f"[STAT] Turn latencies: {turn_latencies}")
 
         return all_model_response, metadata
 
