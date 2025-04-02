@@ -1,6 +1,6 @@
 from pathlib import Path
 
-VLLM_PORT = 1053
+VLLM_PORT = 8000
 
 REAL_TIME_MATCH_ALLOWED_DIFFERENCE = 0.2
 
