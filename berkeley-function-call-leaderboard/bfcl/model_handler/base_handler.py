@@ -415,7 +415,12 @@ class BaseHandler:
                 current_turn_inference_log[f"step_{count}"] = current_step_inference_log
 
                 #print(f"===== model input ", inference_data)
+                inference_start_time = time.time()
                 api_response, query_latency = self._query_prompting(inference_data)
+                inference_end_time = time.time()
+                inference_latency = inference_end_time - inference_start_time
+                print(f"[STAT] Inference {test_entry_id} latency = {inference_latency}")
+                print(f"[STAT] Usage {api_response.usage}")
 
                 # This part of logging is disabled by default because it is too verbose and will make the result file extremely large
                 # It is only useful to see if the inference pipeline is working as expected (eg, does it convert all the inputs correctly)
@@ -580,8 +585,6 @@ class BaseHandler:
             for single_turn_reasoning_content in all_reasoning_content
         ):
             metadata["reasoning_content"] = all_reasoning_content
-
-        task_end_time = time.time()
 
         task_end_time = time.time()
         task_latency = task_end_time - task_start_time
