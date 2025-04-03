@@ -50,22 +50,22 @@ ACTION_REVERT_MAP = {
     "logout": "revert_logout", # done
     "resolve_ticket": "revert_resolve_ticket", # done
     "ticket_get_login_status": None,
-    "ticket_login": "revert_ticket_login" # done
+    "ticket_login": "revert_ticket_login", # done
     # twitterAPI
-    #"authenticate_twitter": "authenticate_twitter",
-    #"comment": "comment",
-    #"follow_user": "follow_user",
-    #"get_tweet": None,
-    #"get_tweet_comments": None,
-    #"get_user_stats": None,
-    #"get_user_tweets": None,
-    #"list_all_following": None,
-    #"mention": "mention",
-    #"post_tweet": "post_tweet",
-    #"posting_get_login_status": None,
-    #"retweet": "retweet",
-    #"search_tweets": None,
-    #"unfollow_user": "unfollow_user"
+    "authenticate_twitter": "revert_authenticate_twitter", # done
+    "comment": "revert_comment", # done
+    "follow_user": "revert_follow_user", # done
+    "get_tweet": None,
+    "get_tweet_comments": None,
+    "get_user_stats": None,
+    "get_user_tweets": None,
+    "list_all_following": None,
+    "mention": "mention", # done
+    "post_tweet": "revert_post_tweet", # done
+    "posting_get_login_status": None, 
+    "retweet": "revert_retweet", # done
+    "search_tweets": None,
+    "unfollow_user": "revert_unfollow_user" # done
 }
 
 
@@ -529,17 +529,17 @@ class BaseHandler:
                 print(
                     f"ID: {test_entry_id.replace('multi_turn_', '')}, Turn: {turn_idx}, Step: {count}"
                 )
-
                 current_step_inference_log: list[dict] = []
                 # Add to the current_turn_inference_log at beginning of each step so that we don't need to bother dealing with the break statements
                 current_turn_inference_log[f"step_{count}"] = current_step_inference_log
 
                 #print("[DEBUG] model input ", inference_data['message'])
-                
                 drafter_start_time = time.time()
                 api_response, query_latency = self._query_prompting(inference_data)
                 drafter_end_time = time.time()
-                print(f"[STAT] Drafter inference time {drafter_end_time - drafter_start_time}")
+                drafter_latency = drafter_end_time - drafter_start_time
+                print(f"[STAT] Drafter inference time {drafter_latency}")
+                print(f"[STAT] vllm usage {api_response.usage}")
 
                 # This part of logging is disabled by default because it is too verbose and will make the result file extremely large
                 # It is only useful to see if the inference pipeline is working as expected (eg, does it convert all the inputs correctly)

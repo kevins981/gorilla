@@ -24,7 +24,30 @@ class TwitterAPI:
         self.following_list: List[str]
         # tweet_counter is used to assign unique IDs to tweets, it might not be the same as the length of the tweets list for different scenarios
         self.tweet_counter: int
+
         self._api_description = "This tool belongs to the TwitterAPI, which provides core functionality for posting tweets, retweeting, commenting, and following users on Twitter."
+
+        self._username_history = []
+        self._password_history = []
+        self._authenticated_history = []
+        self._tweets_history = []
+        self._comments_history = []
+        self._retweets_history = []
+        self._following_list_history = []
+        self._tweet_counter_history = []
+
+    def _save_history(self, obj, history) -> None:
+        # Save obj into history list by creating a copy.
+        # Assume history is a list that contains different versions of obj
+        obj_cp = deepcopy(obj)
+        history.append(obj_cp)
+
+    def _revert(self, history) -> None:
+        # Returns the reverted value
+        # Remove current value
+        history.pop()
+        # Restore previous value
+        return history[-1]
 
     def _load_scenario(self, scenario: dict, long_context=False) -> None:
         """
@@ -49,6 +72,15 @@ class TwitterAPI:
             "tweet_counter", DEFAULT_STATE_COPY["tweet_counter"]
         )
 
+        self._save_history(self.username, self._username_history)
+        self._save_history(self.password, self._password_history)
+        self._save_history(self.authenticated, self._authenticated_history)
+        self._save_history(self.tweets, self._tweets_history)
+        self._save_history(self.comments, self._comments_history)
+        self._save_history(self.retweets, self._retweets_history)
+        self._save_history(self.following_list, self._following_list_history)
+        self._save_history(self.tweet_counter, self._tweet_counter_history)
+
     def authenticate_twitter(self, username: str, password: str) -> Dict[str, bool]:
         """
         Authenticate a user with username and password.
@@ -61,8 +93,14 @@ class TwitterAPI:
         """
         if username == self.username and password == self.password:
             self.authenticated = True
+            self._save_history(self.authenticated, self._authenticated_history)
             return {"authentication_status": True}
+
+        self._save_history(self.authenticated, self._authenticated_history)
         return {"authentication_status": False}
+
+    def revert_authenticate_twitter(self) -> None:
+        self.authenticated = self._revert(self._authenticated_history)
 
     def posting_get_login_status(self) -> Dict[str, Union[bool, str]]:
         """
@@ -102,7 +140,15 @@ class TwitterAPI:
         }
         self.tweets[self.tweet_counter] = tweet
         self.tweet_counter += 1
+
+        self._save_history(self.tweets, self._tweets_history)
+        self._save_history(self.tweet_counter, self._tweet_counter_history)
+
         return tweet
+
+    def revert_post_tweet(self) -> None:
+        self.tweets = self._revert(self._tweets_history)
+        self.tweet_counter = self._revert(self._tweet_counter_history)
 
     def retweet(self, tweet_id: int) -> Dict[str, str]:
         """
@@ -117,16 +163,23 @@ class TwitterAPI:
             return {"error": "User not authenticated. Please authenticate before retweeting."}
                 
         if tweet_id not in self.tweets:
+            self._save_history(self.retweets, self._retweets_history) # also save history here, even though no state change
             return {"error": f"Tweet with ID {tweet_id} not found."}
 
         if self.username not in self.retweets:
             self.retweets[self.username] = []
 
         if tweet_id in self.retweets[self.username]:
+            self._save_history(self.retweets, self._retweets_history) # also save history here, even though no state change
             return {"retweet_status": "Already retweeted"}
 
         self.retweets[self.username].append(tweet_id)
+        self._save_history(self.retweets, self._retweets_history)
+
         return {"retweet_status": "Successfully retweeted"}
+
+    def revert_retweet(self) -> None:
+        self.retweets= self._revert(self._retweets_history)
 
     def comment(self, tweet_id: int, comment_content: str) -> Dict[str, str]:
         """
@@ -141,8 +194,8 @@ class TwitterAPI:
         if not self.authenticated:
             raise {"error": "User not authenticated. Please authenticate before commenting."}
 
-
         if tweet_id not in self.tweets:
+            self._save_history(self.comments, self._comments_history)
             return {"error": f"Tweet with ID {tweet_id} not found."}
 
         if tweet_id not in self.comments:
@@ -151,7 +204,13 @@ class TwitterAPI:
         self.comments[tweet_id].append(
             {"username": self.username, "content": comment_content}
         )
+
+        self._save_history(self.comments, self._comments_history)
+
         return {"comment_status": "Comment added successfully"}
+
+    def revert_comment(self) -> None:
+        self.comments= self._revert(self._comments_history)
 
     def mention(self, tweet_id: int, mentioned_usernames: List[str]) -> Dict[str, str]:
         """
@@ -169,7 +228,12 @@ class TwitterAPI:
         tweet = self.tweets[tweet_id]
         tweet["mentions"].extend(mentioned_usernames)
 
+        self._save_history(self.tweets, self._tweets_history)
+
         return {"mention_status": "Users mentioned successfully"}
+
+    def revert_mention(self) -> None:
+        self.tweets= self._revert(self._tweets_history)
 
     def follow_user(self, username_to_follow: str) -> Dict[str, bool]:
         """
@@ -184,10 +248,15 @@ class TwitterAPI:
             return {"error": "User not authenticated. Please authenticate before following."}
 
         if username_to_follow in self.following_list:
+            self._save_history(self.following_list, self._following_list_history)
             return {"follow_status": False}
 
         self.following_list.append(username_to_follow)
+        self._save_history(self.following_list, self._following_list_history)
         return {"follow_status": True}
+
+    def revert_follow_user(self) -> None:
+        self.following_list= self._revert(self._following_list_history)
 
     def list_all_following(self) -> List[str]:
         """
@@ -214,10 +283,15 @@ class TwitterAPI:
             return {"error": "User not authenticated. Please authenticate before unfollowing."}
 
         if username_to_unfollow not in self.following_list:
+            self._save_history(self.following_list, self._following_list_history)
             return {"unfollow_status": False}
 
         self.following_list.remove(username_to_unfollow)
+        self._save_history(self.following_list, self._following_list_history)
         return {"unfollow_status": True}
+
+    def revert_unfollow_user(self) -> None:
+        self.following_list= self._revert(self._following_list_history)
 
     def get_tweet(self, tweet_id: int) -> Dict[str, Union[int, str, List[str]]]:
         """
@@ -311,3 +385,11 @@ class TwitterAPI:
             "following_count": following_count,
             "retweet_count": retweet_count,
         }
+
+    def print_everything(self):
+        print("authenticated  ", self.authenticated)
+        print("tweets         ", self.tweets)
+        print("comments       ", self.comments)
+        print("retweets       ", self.retweets)
+        print("following_list ", self.following_list)
+        print("tweet_counter ", self.tweet_counter)
