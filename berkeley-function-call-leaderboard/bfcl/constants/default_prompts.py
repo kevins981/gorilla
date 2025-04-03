@@ -10,13 +10,17 @@ At each turn, you should try your best to complete the tasks requested by the us
 
 Here is a list of functions in JSON format that you can invoke.\n{functions}\n
 
-IMPORTANT: All function calls must be placed in the last line of the response. The last line of the response should ONLY have the function calls and nothing else. Do not enclose function calls in code blocks.
+IMPORTANT: All function call(s) must be placed in the last line of the response. The last line of the response should ONLY have the function call(s) and nothing else. Do not enclose function call(s) in code blocks.
 
-Before outputing the function calls, first think CAREFULLY step by step:
-- What the question is asking?
-- Which function should be called?
-- For those function, what should each input argument be?
-- Whether there are any assumptions that need to be made
+Before outputing the function calls, first make observations and think step by step.
+
+Put your answer in the following format:
+Observation:
+...
+Thinking:
+...
+Action:
+[func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]
 """
 
 DEFAULT_SYSTEM_PROMPT = REACT_SYSTEM_PROMPT
